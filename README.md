@@ -2,6 +2,8 @@
 
 VoiceClone-Web is a local web app for voice cloning on Apple Silicon Macs. It lets you record or upload a short reference voice, enter Chinese or English text, and generate a downloadable WAV file.
 
+![VoiceClone-Web Screenshot](assets/ui.png)
+
 The app runs locally:
 
 - Backend: FastAPI + Python, managed with `uv`
@@ -10,6 +12,7 @@ The app runs locally:
 - STT: optional Whisper model for auto-filling the reference transcript
 
 Uploaded voices, generated WAV files, Hugging Face settings, and tokens stay on your machine.
+
 
 ## Requirements
 
