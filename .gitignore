@@ -1,0 +1,55 @@
+# macOS
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# VoiceClone local runtime data
+data/
+models/
+outputs/
+voices/
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+*.webm
+
+# Local secrets and Hugging Face settings
+hf_token
+data/hf_token
+data/hf_endpoint
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+.cache/
