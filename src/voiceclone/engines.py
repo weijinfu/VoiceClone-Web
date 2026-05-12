@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shlex
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -136,6 +137,159 @@ class MlxAudioEngine(SynthesisEngine):
         ]
 
 
+class TorchChatterboxEngine(SynthesisEngine):
+    def __init__(
+        self,
+        *,
+        name: EngineName,
+        device: str,
+        model: str,
+        command_template: str | None,
+        timeout_seconds: int,
+    ) -> None:
+        self.name = name
+        self.device = device
+        self.model = model
+        self.command_template = command_template
+        self.timeout_seconds = timeout_seconds
+
+    def synthesize(
+        self,
+        *,
+        text: str,
+        lang_code: LangCode,
+        reference_audio: Path,
+        output_path: Path,
+        ref_text: str | None,
+    ) -> SynthesisResult:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        command = self._build_command(text=text, reference_audio=reference_audio, output_path=output_path)
+        try:
+            completed = subprocess.run(command, capture_output=True, text=True, timeout=self.timeout_seconds)
+        except subprocess.TimeoutExpired as exc:
+            detail = (exc.stderr or exc.stdout or "").strip()
+            raise RuntimeError(
+                f"PyTorch synthesis timed out after {self.timeout_seconds}s."
+                + (f" Last output: {detail}" if detail else "")
+            ) from exc
+        if completed.returncode != 0:
+            detail = completed.stderr.strip() or completed.stdout.strip() or "unknown PyTorch TTS error"
+            raise RuntimeError(f"PyTorch synthesis failed: {detail}")
+        if not output_path.exists():
+            raise RuntimeError("PyTorch synthesis completed but did not create an output WAV.")
+        return SynthesisResult(
+            output_path=output_path,
+            duration_seconds=get_wav_duration(output_path),
+            model=f"chatterbox-tts/{self.device}",
+        )
+
+    def _build_command(self, *, text: str, reference_audio: Path, output_path: Path) -> list[str]:
+        values = {
+            "model": self.model,
+            "text": text,
+            "reference_audio": str(reference_audio),
+            "output_path": str(output_path),
+            "device": self.device,
+        }
+        if self.command_template:
+            return shlex.split(self.command_template.format(**values))
+        return [
+            sys.executable,
+            "-m",
+            "voiceclone.torch_tts_worker",
+            text,
+            str(reference_audio),
+            str(output_path),
+            self.device,
+        ]
+
+
+class TorchQwenEngine(SynthesisEngine):
+    def __init__(
+        self,
+        *,
+        name: EngineName,
+        device: str,
+        model: str,
+        command_template: str | None,
+        timeout_seconds: int,
+    ) -> None:
+        self.name = name
+        self.device = device
+        self.model = model
+        self.command_template = command_template
+        self.timeout_seconds = timeout_seconds
+
+    def synthesize(
+        self,
+        *,
+        text: str,
+        lang_code: LangCode,
+        reference_audio: Path,
+        output_path: Path,
+        ref_text: str | None,
+    ) -> SynthesisResult:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        command = self._build_command(
+            text=text,
+            lang_code=lang_code,
+            reference_audio=reference_audio,
+            output_path=output_path,
+            ref_text=ref_text,
+        )
+        try:
+            completed = subprocess.run(command, capture_output=True, text=True, timeout=self.timeout_seconds)
+        except subprocess.TimeoutExpired as exc:
+            detail = (exc.stderr or exc.stdout or "").strip()
+            raise RuntimeError(
+                f"Qwen PyTorch synthesis timed out after {self.timeout_seconds}s."
+                + (f" Last output: {detail}" if detail else "")
+            ) from exc
+        if completed.returncode != 0:
+            detail = completed.stderr.strip() or completed.stdout.strip() or "unknown Qwen PyTorch TTS error"
+            raise RuntimeError(f"Qwen PyTorch synthesis failed: {detail}")
+        if not output_path.exists():
+            raise RuntimeError("Qwen PyTorch synthesis completed but did not create an output WAV.")
+        return SynthesisResult(
+            output_path=output_path,
+            duration_seconds=get_wav_duration(output_path),
+            model=f"{self.model}/{self.device}",
+        )
+
+    def _build_command(
+        self,
+        *,
+        text: str,
+        lang_code: LangCode,
+        reference_audio: Path,
+        output_path: Path,
+        ref_text: str | None,
+    ) -> list[str]:
+        values = {
+            "model": self.model,
+            "text": text,
+            "reference_audio": str(reference_audio),
+            "output_path": str(output_path),
+            "lang_code": lang_code,
+            "ref_text": ref_text or "",
+            "device": self.device,
+        }
+        if self.command_template:
+            return shlex.split(self.command_template.format(**values))
+        return [
+            sys.executable,
+            "-m",
+            "voiceclone.qwen_tts_worker",
+            self.model,
+            text,
+            lang_code,
+            str(reference_audio),
+            ref_text or "",
+            str(output_path),
+            self.device,
+        ]
+
+
 def get_engine(name: EngineName, settings: Settings, model_override: str | None = None) -> SynthesisEngine:
     if name == "tone":
         return ToneEngine()
@@ -146,11 +300,43 @@ def get_engine(name: EngineName, settings: Settings, model_override: str | None 
             command_template=settings.mlx_command,
             timeout_seconds=settings.synthesis_timeout_seconds,
         )
+    if name == "qwen3_torch_cpu":
+        return TorchQwenEngine(
+            name=name,
+            device="cpu",
+            model=settings.qwen3_torch_model,
+            command_template=settings.torch_command,
+            timeout_seconds=settings.synthesis_timeout_seconds,
+        )
+    if name == "qwen3_torch_cuda":
+        return TorchQwenEngine(
+            name=name,
+            device="cuda",
+            model=settings.qwen3_torch_model,
+            command_template=settings.torch_command,
+            timeout_seconds=settings.synthesis_timeout_seconds,
+        )
     if name == "chatterbox_mlx":
         return MlxAudioEngine(
             name=name,
             model=model_override or settings.chatterbox_model,
             command_template=settings.mlx_command,
+            timeout_seconds=settings.synthesis_timeout_seconds,
+        )
+    if name == "chatterbox_torch_cpu":
+        return TorchChatterboxEngine(
+            name=name,
+            device="cpu",
+            model=settings.chatterbox_torch_model,
+            command_template=settings.torch_command,
+            timeout_seconds=settings.synthesis_timeout_seconds,
+        )
+    if name == "chatterbox_torch_cuda":
+        return TorchChatterboxEngine(
+            name=name,
+            device="cuda",
+            model=settings.chatterbox_torch_model,
+            command_template=settings.torch_command,
             timeout_seconds=settings.synthesis_timeout_seconds,
         )
     raise ValueError(f"Unknown engine: {name}")

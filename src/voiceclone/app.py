@@ -306,7 +306,15 @@ def _run_synthesis_job(job_id: str, request_ref_text: str | None) -> None:
 
 def _default_engine_name() -> EngineName:
     value = settings.default_engine
-    if value in {"qwen3_mlx", "chatterbox_mlx", "tone"}:
+    if value in {
+        "qwen3_mlx",
+        "qwen3_torch_cpu",
+        "qwen3_torch_cuda",
+        "chatterbox_mlx",
+        "chatterbox_torch_cpu",
+        "chatterbox_torch_cuda",
+        "tone",
+    }:
         return value  # type: ignore[return-value]
     return "qwen3_mlx"
 

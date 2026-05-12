@@ -20,11 +20,17 @@ class Settings:
             "VOICECLONE_QWEN3_MODEL",
             "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-8bit",
         )
+        self.qwen3_torch_model = os.getenv(
+            "VOICECLONE_QWEN3_TORCH_MODEL",
+            "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        )
         self.chatterbox_model = os.getenv(
             "VOICECLONE_CHATTERBOX_MODEL",
             "mlx-community/chatterbox-fp16",
         )
+        self.chatterbox_torch_model = os.getenv("VOICECLONE_CHATTERBOX_TORCH_MODEL", "default")
         self.mlx_command = os.getenv("VOICECLONE_MLX_COMMAND")
+        self.torch_command = os.getenv("VOICECLONE_TORCH_COMMAND")
         self.hf_cache_dir = Path(os.getenv("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
         self.synthesis_timeout_seconds = int(os.getenv("VOICECLONE_SYNTHESIS_TIMEOUT", "600"))
         self.stt_timeout_seconds = int(os.getenv("VOICECLONE_STT_TIMEOUT", "180"))

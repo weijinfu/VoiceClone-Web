@@ -317,6 +317,31 @@ select {
   overflow-wrap: anywhere;
 }
 
+.package-model-info {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.package-model-info p {
+  color: #58645f;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.package-model-info code {
+  background: #eef3f1;
+  border: 1px solid #d9e3de;
+  border-radius: 5px;
+  color: #1f332c;
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  padding: 8px;
+}
+
 .dependent-model {
   border-top: 1px solid #dfe6e2;
   margin-top: 16px;
@@ -673,7 +698,7 @@ select {
   }
 
   .model-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .models-header {
@@ -705,5 +730,11 @@ select {
   .output-actions,
   .output-actions audio {
     width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .model-grid {
+    grid-template-columns: 1fr;
   }
 }

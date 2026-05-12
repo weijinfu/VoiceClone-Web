@@ -30,7 +30,7 @@ type Job = {
   voice_id: string;
   text: string;
   lang_code: "zh" | "en";
-  engine: "qwen3_mlx" | "chatterbox_mlx" | "tone";
+  engine: EngineName;
   output_path: string | null;
   duration_seconds: number | null;
   generation_seconds: number | null;
@@ -72,9 +72,15 @@ type HfEndpointStatus = {
 
 const engineLabels = {
   qwen3_mlx: "Qwen3 MLX 8bit",
+  qwen3_torch_cpu: "Qwen3 PyTorch CPU",
+  qwen3_torch_cuda: "Qwen3 PyTorch CUDA",
   chatterbox_mlx: "Chatterbox MLX",
+  chatterbox_torch_cpu: "Chatterbox PyTorch CPU",
+  chatterbox_torch_cuda: "Chatterbox PyTorch CUDA",
   tone: "Tone test"
 } as const;
+
+type EngineName = keyof typeof engineLabels;
 
 const allModelKeys = ["qwen3", "chatterbox", "whisper_stt"];
 
@@ -90,7 +96,7 @@ function App() {
   const [previewPlayable, setPreviewPlayable] = useState(true);
   const [text, setText] = useState("你好，这是一个本地运行的声音克隆工具。");
   const [langCode, setLangCode] = useState<"zh" | "en">("zh");
-  const [engine, setEngine] = useState<"qwen3_mlx" | "chatterbox_mlx" | "tone">("qwen3_mlx");
+  const [engine, setEngine] = useState<EngineName>("qwen3_mlx");
   const [job, setJob] = useState<Job | null>(null);
   const [modelStatuses, setModelStatuses] = useState<Record<string, ModelStatus | undefined>>({});
   const [hfTokenStatus, setHfTokenStatus] = useState<HfTokenStatus | null>(null);
@@ -482,7 +488,7 @@ function App() {
               <button className={langCode === "en" ? "active" : ""} onClick={() => setLangCode("en")}>English</button>
             </div>
             <div className="model-select-row">
-              <select value={engine} onChange={(event) => setEngine(event.target.value as typeof engine)}>
+              <select value={engine} onChange={(event) => setEngine(event.target.value as EngineName)}>
                 {Object.entries(engineLabels).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
@@ -617,6 +623,24 @@ function App() {
                 onCancel={() => cancelModelDownload("whisper_stt")}
               />
             </article>
+            <article className="model-card">
+              <PackageModelPanel
+                title="Qwen3 PyTorch CPU/CUDA"
+                model="Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+                engines="qwen3_torch_cpu, qwen3_torch_cuda"
+                installCommand="uv sync --extra dev --extra qwen-torch && uv pip install qwen-tts"
+                note="Use this on Windows/Linux when you want Qwen without MLX. CUDA requires a CUDA-enabled PyTorch install."
+              />
+            </article>
+            <article className="model-card">
+              <PackageModelPanel
+                title="Chatterbox PyTorch CPU/CUDA"
+                model="chatterbox-tts default package model"
+                engines="chatterbox_torch_cpu, chatterbox_torch_cuda"
+                installCommand="uv sync --extra dev --extra chatterbox-torch && uv pip install chatterbox-tts"
+                note="Use this on Windows/Linux when you want Chatterbox without MLX. Install it in a separate environment from qwen-tts."
+              />
+            </article>
           </div>
         </section>
       )}
@@ -697,6 +721,36 @@ function ModelStatusPanel({
   );
 }
 
+function PackageModelPanel({
+  title,
+  model,
+  engines,
+  installCommand,
+  note
+}: {
+  title: string;
+  model: string;
+  engines: string;
+  installCommand: string;
+  note: string;
+}) {
+  return (
+    <>
+      <div className="model-meta">
+        <strong>{title}</strong>
+        <span>{model}</span>
+      </div>
+      <div className="package-model-info">
+        <span className="section-label">Engines</span>
+        <p>{engines}</p>
+        <span className="section-label">Install</span>
+        <code>{installCommand}</code>
+        <p>{note}</p>
+      </div>
+    </>
+  );
+}
+
 function statusMessage(job: Job) {
   if (job.status === "succeeded") {
     return "Generation complete";
@@ -750,7 +804,7 @@ function getRecordingType() {
   return candidates.find((candidate) => !candidate.mimeType || MediaRecorder.isTypeSupported(candidate.mimeType)) ?? candidates[3];
 }
 
-function requiredModelKeys(engine: "qwen3_mlx" | "chatterbox_mlx" | "tone", refText: string) {
+function requiredModelKeys(engine: EngineName, refText: string) {
   const keys: string[] = [];
   if (engine === "qwen3_mlx") {
     keys.push("qwen3");

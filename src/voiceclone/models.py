@@ -7,7 +7,15 @@ from pydantic import BaseModel, Field
 
 
 LangCode = Literal["zh", "en"]
-EngineName = Literal["qwen3_mlx", "chatterbox_mlx", "tone"]
+EngineName = Literal[
+    "qwen3_mlx",
+    "qwen3_torch_cpu",
+    "qwen3_torch_cuda",
+    "chatterbox_mlx",
+    "chatterbox_torch_cpu",
+    "chatterbox_torch_cuda",
+    "tone",
+]
 JobStatus = Literal["queued", "running", "succeeded", "failed"]
 
 

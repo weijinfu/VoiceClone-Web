@@ -1,6 +1,6 @@
 # VoiceClone-Web
 
-VoiceClone-Web is a local web app for voice cloning on Apple Silicon Macs. It lets you record or upload a short reference voice, enter Chinese or English text, and generate a downloadable WAV file.
+VoiceClone-Web is a local web app for voice cloning. It lets you record or upload a short reference voice, enter Chinese or English text, and generate a downloadable WAV file.
 
 ![VoiceClone-Web Screenshot](assets/ui.png)
 
@@ -8,7 +8,7 @@ The app runs locally:
 
 - Backend: FastAPI + Python, managed with `uv`
 - Frontend: React + Vite
-- TTS: MLX models through `mlx-audio`
+- TTS: MLX models on Apple Silicon, or PyTorch Qwen/Chatterbox on CPU/CUDA
 - STT: optional Whisper model for auto-filling the reference transcript
 
 Uploaded voices, generated WAV files, Hugging Face settings, and tokens stay on your machine.
@@ -16,19 +16,26 @@ Uploaded voices, generated WAV files, Hugging Face settings, and tokens stay on 
 
 ## Requirements
 
-- Apple Silicon Mac, 16 GB memory recommended
-- macOS with Xcode Command Line Tools
-- Homebrew
+- Apple Silicon Mac for MLX engines
+- Windows or Linux for PyTorch CPU/CUDA engines
 - Node.js 20+
 - `uv`
 - `ffmpeg`
 
-Install the required tools:
+On macOS, install the required tools with Homebrew:
 
 ```bash
 xcode-select --install
 brew install uv node ffmpeg
 ```
+
+On Windows, install:
+
+- Git
+- Node.js 20+
+- `uv`
+- `ffmpeg`
+- NVIDIA driver and CUDA-compatible PyTorch if you want GPU inference
 
 Check the tools:
 
@@ -52,11 +59,29 @@ Enter the project root:
 cd VoiceClone-Web
 ```
 
-Install Python dependencies:
+Install Python dependencies for Apple Silicon MLX:
 
 ```bash
 uv sync --extra dev --extra mlx
 ```
+
+Install Python dependencies for Qwen on Windows/Linux CPU or CUDA:
+
+```bash
+uv sync --extra dev --extra qwen-torch
+uv pip install qwen-tts
+```
+
+Install Python dependencies for Chatterbox on Windows/Linux CPU or CUDA:
+
+```bash
+uv sync --extra dev --extra chatterbox-torch
+uv pip install chatterbox-tts
+```
+
+`qwen-tts` and `chatterbox-tts` currently pin different `transformers` versions, so install one PyTorch TTS package per environment.
+
+If you want CUDA on Windows, install a CUDA-enabled PyTorch build in the project environment before starting the backend. CPU mode works without CUDA.
 
 Install frontend dependencies:
 
@@ -119,9 +144,10 @@ You can also paste a Hugging Face token in the `Models` page. This is optional, 
 
 Recommended first setup:
 
-1. Download `Qwen3 MLX 8bit`.
+1. On Apple Silicon, download `Qwen3 MLX 8bit`.
 2. Download `Whisper STT` if you want automatic reference transcript filling.
-3. Download `Chatterbox MLX` only if you want to compare the fallback TTS engine.
+3. On Apple Silicon, download `Chatterbox MLX` only if you want to compare the fallback MLX engine.
+4. On Windows/Linux, select `Qwen3 PyTorch CPU`, `Qwen3 PyTorch CUDA`, `Chatterbox PyTorch CPU`, or `Chatterbox PyTorch CUDA` in the `Synthesize` page. These engines use the PyTorch package cache instead of the MLX model manager.
 
 ## Models
 
@@ -139,6 +165,50 @@ Engine name:
 qwen3_mlx
 ```
 
+### Qwen3 PyTorch CPU
+
+Cross-platform CPU TTS engine. The default PyTorch model is:
+
+```text
+Qwen/Qwen3-TTS-12Hz-0.6B-Base
+```
+
+Engine name:
+
+```text
+qwen3_torch_cpu
+```
+
+Install with:
+
+```bash
+uv sync --extra dev --extra qwen-torch
+uv pip install qwen-tts
+```
+
+### Qwen3 PyTorch CUDA
+
+Windows/Linux GPU TTS engine for NVIDIA CUDA. The default PyTorch model is:
+
+```text
+Qwen/Qwen3-TTS-12Hz-0.6B-Base
+```
+
+Engine name:
+
+```text
+qwen3_torch_cuda
+```
+
+Install with:
+
+```bash
+uv sync --extra dev --extra qwen-torch
+uv pip install qwen-tts
+```
+
+You also need a CUDA-enabled PyTorch installation and a working NVIDIA driver.
+
 ### Chatterbox MLX
 
 Fallback TTS model:
@@ -152,6 +222,42 @@ Engine name:
 ```text
 chatterbox_mlx
 ```
+
+### Chatterbox PyTorch CPU
+
+Cross-platform CPU TTS engine.
+
+Engine name:
+
+```text
+chatterbox_torch_cpu
+```
+
+Install with:
+
+```bash
+uv sync --extra dev --extra chatterbox-torch
+uv pip install chatterbox-tts
+```
+
+### Chatterbox PyTorch CUDA
+
+Windows/Linux GPU TTS engine for NVIDIA CUDA.
+
+Engine name:
+
+```text
+chatterbox_torch_cuda
+```
+
+Install with:
+
+```bash
+uv sync --extra dev --extra chatterbox-torch
+uv pip install chatterbox-tts
+```
+
+You also need a CUDA-enabled PyTorch installation and a working NVIDIA driver.
 
 ### Whisper STT
 
@@ -250,7 +356,9 @@ Common environment variables:
 VOICECLONE_DATA_DIR=data
 VOICECLONE_ENGINE=qwen3_mlx
 VOICECLONE_QWEN3_MODEL=mlx-community/Qwen3-TTS-12Hz-1.7B-Base-8bit
+VOICECLONE_QWEN3_TORCH_MODEL=Qwen/Qwen3-TTS-12Hz-0.6B-Base
 VOICECLONE_CHATTERBOX_MODEL=mlx-community/chatterbox-fp16
+VOICECLONE_CHATTERBOX_TORCH_MODEL=default
 VOICECLONE_SYNTHESIS_TIMEOUT=600
 VOICECLONE_STT_TIMEOUT=180
 HF_ENDPOINT=https://hf-mirror.com
@@ -261,6 +369,7 @@ The endpoint and token can also be configured in the app from the `Models` page.
 
 ## Notes
 
-- The full voice cloning workflow is intended for Apple Silicon Macs because the project uses MLX.
-- The frontend and FastAPI app can run on other systems, but the MLX TTS/STT engines require Apple Silicon.
+- MLX engines are intended for Apple Silicon Macs.
+- PyTorch Qwen and Chatterbox engines are intended for Windows/Linux CPU or NVIDIA CUDA environments.
+- Whisper STT in this project currently uses MLX, so automatic reference transcript filling is Apple Silicon focused.
 - The app performs zero-shot voice cloning only; it does not train or fine-tune voices.
